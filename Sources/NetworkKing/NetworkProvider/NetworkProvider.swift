@@ -79,10 +79,10 @@ extension NetworkProvider {
     ) async throws -> (Data, URLResponse, URLRequest) {
         // 1. Build url request
         var request = try target.toURLRequest()
-        // 2. Invoke request interceptor. e.g set access-token or monitor request etc.
-        request = try await requestInterceptor.adapt(request, for: target)
-        // 3. Perform network data request
         do {
+            // 2. Invoke request interceptor. e.g set access-token or monitor request etc.
+            request = try await requestInterceptor.adapt(request, for: target)
+            // 3. Perform network data request
             let (data, urlResponse) = try await session.data(for: request)
             // 4. Perform response validation if available.
             try dataResponseValidator?.validate(data, response: urlResponse).get()
@@ -90,12 +90,14 @@ extension NetworkProvider {
             return (data, urlResponse, request)
         } catch {
             if isRetrying {
+                /// End recursion
                 throw error
             }
             /// Check for retry
             let retryResult = try await requestInterceptor.retry(request, for: target, dueTo: error)
             switch retryResult {
             case .retry:
+                /// Start recursion
                 return try await performDataRequest(target: target, isRetrying: true)
             case .doNotRetry:
                 throw error

@@ -29,4 +29,27 @@ final class RequestInterceptorTests: XCTestCase {
         let newHeaders = newRequest.allHTTPHeaderFields ?? [:]
         XCTAssertTrue(newHeaders[header.key] == header.value)
     }
+
+    func testRetry() async throws {
+        let originalRequest = URLRequest(url: URL(string: "http://test.com/abc")!)
+        let originalTarget = MockTargetType.example1
+        let originalError = NSError(domain: "test", code: 11)
+        var result = RetryResult.doNotRetry
+
+        let retrier = MockRequestRetrier { request, target, error in
+            XCTAssertEqual(request, originalRequest)
+            XCTAssertEqual(target as! MockTargetType, originalTarget)
+            XCTAssertEqual(error as NSError, originalError)
+            return result
+        }
+        let interceptor = RequestInterceptor(retriers: [retrier])
+
+        let finalResult1 = try await interceptor.retry(originalRequest, for: originalTarget, dueTo: originalError)
+        XCTAssertEqual(finalResult1, .doNotRetry)
+
+        result = .retry
+        let finalResult2 = try await interceptor.retry(originalRequest, for: originalTarget, dueTo: originalError)
+
+        XCTAssertEqual(finalResult2, .retry)
+    }
 }

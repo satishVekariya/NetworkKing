@@ -29,7 +29,7 @@ extension MockLoginEndpoints: NetworkTargetType {
         }
     }
 
-    var method: Networking.HTTPMethod {
+    var method: HTTPMethod {
         switch self {
         case .login:
             return .post
@@ -49,8 +49,8 @@ extension MockLoginEndpoints: NetworkTargetType {
 }
 
 struct MockDataResponseValidator: DataResponseValidator {
-    let block: () -> Result<Void, Networking.NetworkError>
-    func validate(_: Data, response _: URLResponse) -> Result<Void, Networking.NetworkError> {
+    let block: () -> Result<Void, NetworkError>
+    func validate(_: Data, response _: URLResponse) -> Result<Void, NetworkError> {
         block()
     }
 }

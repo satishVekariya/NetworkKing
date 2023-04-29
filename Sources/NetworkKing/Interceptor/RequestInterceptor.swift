@@ -28,12 +28,14 @@ public struct RequestInterceptor: RequestAdapter, RequestRetrier {
     }
 
     public func retry(_ request: URLRequest, for target: NetworkTargetType, dueTo error: Error) async throws -> RetryResult {
+        var finalResult = RetryResult.doNotRetry
+
         for retrier in retriers {
-            let result = try await retrier.retry(request, for: target, dueTo: error)
-            if result == .doNotRetry {
+            finalResult = try await retrier.retry(request, for: target, dueTo: error)
+            if finalResult == .doNotRetry {
                 break
             }
         }
-        return .doNotRetry
+        return finalResult
     }
 }

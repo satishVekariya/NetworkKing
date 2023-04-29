@@ -1,27 +1,35 @@
-# NetworkKing
+# NetworkKing 👑
 
 ![Swift](https://img.shields.io/badge/Swift-5.8-orange?style=flat-square)
 ![Swift Package Manager](https://img.shields.io/badge/Swift_Package_Manager-compatible-orange?style=flat-square)
 ![Platforms](https://img.shields.io/badge/Platforms-iOS-yellowgreen?style=flat-square)
 
-Networking is a  network abstraction layer written in Swift. It does not implement its own HTTP networking functionality. Instead it builds on top of URLSession.
+NetworkKing is a  network abstraction layer written in Swift. It does not implement its own HTTP networking functionality. Instead it builds on top of URLSession.
 
-##Features
+## Features
 
 ✅ Compile-time checking for correct API endpoint accesses.
+
 ✅ Lets you define a clear usage of different endpoints with associated enum values.
+
 ✅ Swift's concurrency support
+
 ✅ Inspection and mutation support for each request before being start
+
+✅ Request retrying
+
 ✅ Response validation
+
 ✅ Errors handling
+
 ✅ Comprehensive Unit test coverage
 
-##Usage
+## Usage
 
 __Routing__: So how do you use this module? Well it's really simple. First set up `enum` with all your api targets. You can include information as part of your enum. For example first create a new enum MyApiTarget:
 
 ```Swift
-import Networking
+import NetworkKing
  
 enum MyApiTarget {
     case getMyData
@@ -35,7 +43,7 @@ extension MyApiTarget: NetworkTargetType {
     var path: String {
         "/todos/1"
     }
-    var method: Networking.HTTPMethod {
+    var method: NetworkKing.HTTPMethod {
         .get
     }
 }
@@ -64,7 +72,7 @@ Task {
 ```
 
 
-__RequestInterceptor__: Networking module can mutate or inspect each url request before its being made. What you needs to do is create a type that confirm to the `RequestAdapter` and pass an instance of that type into NetworkProvider's init like below:
+__RequestInterceptor__: NetworkKing module can mutate or inspect each url request before its being made. What you needs to do is create a type that confirm to the `RequestAdapter` and pass an instance of that type into NetworkProvider's init like below:
 
 ```Swift
 struct NetworkEventMonitor: RequestAdapter {
@@ -74,8 +82,18 @@ struct NetworkEventMonitor: RequestAdapter {
     }
 }
  
+// Request retrying
+struct MyRequestRetrier: RequestRetrier {
+   public func retry(_ request: URLRequest,for target: NetworkTargetType,dueTo error: Error) async throws -> RetryResult {
+       if error == "254" {
+           // e.g. Perform refresh token and then return 
+           return .retry // This will trigger rebuild of URLRequest
+       }
+       return .doNotRetry
+   }
+} 
  
-let interceptor = RequestInterceptor(adapters: [NetworkEventMonitor(), ...])
+let interceptor = RequestInterceptor(adapters: [NetworkEventMonitor(), ...], retriers: [MyRequestRetrier(), ...])
 let myProvider = NetworkProvider<UserService>.init(requestInterceptor: interceptor)
 ```
 
@@ -91,9 +109,7 @@ struct MyCustomDataResponseValidator: DataResponseValidator {
         return .success(Void())
     }
 }
- 
-// With builtin default validator
-let myProvider1 = NetworkProvider<UserService>.init(whiteHatResponseValidator: .default)
+
 // With custom validator
 let myProvider2 = NetworkProvider<UserService>.init(dataResponseValidator: MyCustomDataResponseValidator())
 ```
@@ -122,7 +138,7 @@ Task {
 }
 ```
 
-##References
+## References
 Alamofire routing: https://github.com/Alamofire/Alamofire/blob/master/Documentation/AdvancedUsage.md#routing-requests
 
 Moya: https://github.com/Moya/Moya

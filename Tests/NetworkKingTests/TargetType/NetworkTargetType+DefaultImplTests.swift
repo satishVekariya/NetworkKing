@@ -38,7 +38,7 @@ final class NetworkTargetTypeDefaultImplTest: XCTestCase {
             ""
         }
 
-        var method: Networking.HTTPMethod {
+        var method: HTTPMethod {
             .get
         }
     }

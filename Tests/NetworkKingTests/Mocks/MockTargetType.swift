@@ -19,7 +19,7 @@ enum MockTargetType: NetworkTargetType {
         ""
     }
 
-    var method: Networking.HTTPMethod {
+    var method: HTTPMethod {
         .get
     }
 }
