@@ -1,7 +1,7 @@
 # NetworkKing 👑
 
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange?style=flat-square)](https://swift.org)
-[![Platforms](https://img.shields.io/badge/Platforms-iOS_16+-yellowgreen?style=flat-square)](https://developer.apple.com/ios/)
+[![Platforms](https://img.shields.io/badge/Platforms-iOS_16+_|_macOS_13+-yellowgreen?style=flat-square)](https://developer.apple.com)
 [![SPM](https://img.shields.io/badge/SPM-compatible-orange?style=flat-square)](https://swift.org/package-manager/)
 [![CI](https://github.com/satishVekariya/NetworkKing/actions/workflows/swift.yml/badge.svg)](https://github.com/satishVekariya/NetworkKing/actions/workflows/swift.yml)
 
@@ -17,7 +17,7 @@ Type-safe, dependency-free networking on top of `URLSession`, with async/await �
 
 ## Requirements
 
-iOS 16+ · Swift 6.0 · Xcode 16+
+iOS 16+ · macOS 13+ · Swift 6.0 · Xcode 16+
 
 ## Installation
 
