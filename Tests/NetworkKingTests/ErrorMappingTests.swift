@@ -36,20 +36,27 @@ struct ErrorMappingTests {
         }
     }
 
-    @Test("LocalizedError descriptions are non-empty for every case")
-    func localizedDescriptions() throws {
-        let cases: [NetworkError] = [
-            .decodingFailed(error: NSError(domain: "t", code: 1)),
-            .encodingFailed(error: NSError(domain: "t", code: 1)),
-            .urlEncodingFailed(reason: "bad"),
-            .underlaying(error: NSError(domain: "t", code: 1)),
-            .responseValidationFailed(error: nil),
-            .responseValidationFailed(error: NSError(domain: "t", code: 1)),
-        ]
-        for c in cases {
-            let desc = try #require(c.errorDescription)
-            #expect(!desc.isEmpty)
-        }
+    @Test("LocalizedError descriptions surface the underlying error / reason")
+    func localizedDescriptionsIncludeUnderlying() throws {
+        let underlying = NSError(domain: "test", code: 1, userInfo: [NSLocalizedDescriptionKey: "needle-42"])
+
+        let decodingDesc = try #require(NetworkError.decodingFailed(error: underlying).errorDescription)
+        #expect(decodingDesc.contains("needle-42"))
+
+        let encodingDesc = try #require(NetworkError.encodingFailed(error: underlying).errorDescription)
+        #expect(encodingDesc.contains("needle-42"))
+
+        let urlEncodingDesc = try #require(NetworkError.urlEncodingFailed(reason: "needle-43").errorDescription)
+        #expect(urlEncodingDesc.contains("needle-43"))
+
+        let validationDesc = try #require(NetworkError.responseValidationFailed(error: underlying).errorDescription)
+        #expect(validationDesc.contains("needle-42"))
+
+        let nilValidationDesc = try #require(NetworkError.responseValidationFailed(error: nil).errorDescription)
+        #expect(!nilValidationDesc.isEmpty)
+
+        let underlayingDesc = try #require(NetworkError.underlaying(error: underlying).errorDescription)
+        #expect(underlayingDesc.contains("needle-42"))
     }
 }
 

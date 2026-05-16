@@ -32,7 +32,7 @@ public struct RequestInterceptor: RequestAdapter, RequestRetrier {
 
         for retrier in retriers {
             finalResult = try await retrier.retry(request, for: target, dueTo: error)
-            if finalResult == .doNotRetry {
+            if finalResult == .retry {
                 break
             }
         }

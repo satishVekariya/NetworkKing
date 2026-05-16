@@ -23,11 +23,6 @@ struct TargetTypeDefaultsTests {
         Issue.record("expected .requestPlain")
     }
 
-    @Test("Default decoder is JSONDecoder")
-    func defaultDecoder() {
-        _ = MinimalTarget.ping.decoder // smoke test — does not crash
-    }
-
     @Test("toURLRequest composes baseURL + path")
     func urlComposition() throws {
         let request = try MinimalTarget.ping.toURLRequest()
@@ -77,6 +72,13 @@ struct TargetTypeDefaultsTests {
         let decoded = try JSONDecoder().decode(Body.self, from: raw)
         #expect(decoded == body)
         #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+    }
+
+    @Test("urlRequest convenience returns the same URLRequest as toURLRequest()")
+    func urlRequestConvenienceMatches() throws {
+        let direct = try MinimalTarget.ping.toURLRequest()
+        let convenience = try #require(MinimalTarget.ping.urlRequest)
+        #expect(convenience == direct)
     }
 
     @Test("toURLRequest with .requestURLQueryParameters appends query")

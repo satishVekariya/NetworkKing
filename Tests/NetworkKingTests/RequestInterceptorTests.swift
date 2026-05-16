@@ -5,21 +5,22 @@ import Testing
 @Suite("RequestInterceptor")
 struct RequestInterceptorTests {
 
-    @Test("Single adapter mutates request")
+    // MARK: Adapters
+
+    @Test("Single adapter mutates request and is invoked once")
     func singleAdapter() async throws {
         let count = TestBox(0)
         let adapter = MockAdapter(httpHeaders: ["Content-Type": "XYZ"]) { count.value += 1 }
         let interceptor = RequestInterceptor(adapters: [adapter])
 
         let target = MockTargetType.example1
-        let request = try target.toURLRequest()
-        let adapted = try await interceptor.adapt(request, for: target)
+        let adapted = try await interceptor.adapt(target.toURLRequest(), for: target)
 
         #expect(count.value == 1)
         #expect(adapted.value(forHTTPHeaderField: "Content-Type") == "XYZ")
     }
 
-    @Test("Adapters run in order; later overrides earlier")
+    @Test("Adapters run in declaration order; later adapter overrides earlier")
     func adapterChainOrder() async throws {
         let calls = TestBox<[Int]>([])
         let a1 = MockAdapter(httpHeaders: ["X-K": "first"])  { calls.value.append(1) }
@@ -27,8 +28,7 @@ struct RequestInterceptorTests {
         let interceptor = RequestInterceptor(adapters: [a1, a2])
 
         let target = MockTargetType.example1
-        let request = try target.toURLRequest()
-        let adapted = try await interceptor.adapt(request, for: target)
+        let adapted = try await interceptor.adapt(target.toURLRequest(), for: target)
 
         #expect(calls.value == [1, 2])
         #expect(adapted.value(forHTTPHeaderField: "X-K") == "second")
@@ -42,40 +42,67 @@ struct RequestInterceptorTests {
         #expect(adapted == request)
     }
 
-    @Test("retry returns .retry when retrier signals retry")
-    func retryReturnsRetry() async throws {
-        let retrier = MockRequestRetrier { _, _, _ in .retry }
-        let interceptor = RequestInterceptor(retriers: [retrier])
-        let request = URLRequest(url: URL(string: "https://x.com")!)
-        let result = try await interceptor.retry(request, for: MockTargetType.example1, dueTo: NSError(domain: "t", code: 1))
-        #expect(result == .retry)
-    }
+    // MARK: Retriers
 
-    @Test("retry returns .doNotRetry when retrier signals so")
-    func retryReturnsDoNotRetry() async throws {
-        let retrier = MockRequestRetrier { _, _, _ in .doNotRetry }
-        let interceptor = RequestInterceptor(retriers: [retrier])
-        let request = URLRequest(url: URL(string: "https://x.com")!)
-        let result = try await interceptor.retry(request, for: MockTargetType.example1, dueTo: NSError(domain: "t", code: 1))
-        #expect(result == .doNotRetry)
-    }
+    @Test("Retry chain stops at the first .retry")
+    func retryStopsOnFirstRetry() async throws {
+        let calls = TestBox<[Int]>([])
+        let r1 = MockRequestRetrier { _, _, _ in calls.value.append(1); return .doNotRetry }
+        let r2 = MockRequestRetrier { _, _, _ in calls.value.append(2); return .retry }
+        let r3 = MockRequestRetrier { _, _, _ in calls.value.append(3); return .retry }
+        let interceptor = RequestInterceptor(retriers: [r1, r2, r3])
 
-    @Test("retry stops at the first .doNotRetry in the chain")
-    func retryChainStopsOnDoNotRetry() async throws {
-        let calls = TestBox(0)
-        let r1 = MockRequestRetrier { _, _, _ in calls.value += 1; return .doNotRetry }
-        let r2 = MockRequestRetrier { _, _, _ in calls.value += 1; return .retry }
-        let interceptor = RequestInterceptor(retriers: [r1, r2])
         let result = try await interceptor.retry(
             URLRequest(url: URL(string: "https://x.com")!),
             for: MockTargetType.example1,
             dueTo: NSError(domain: "t", code: 1)
         )
-        #expect(calls.value == 1)
+        #expect(result == .retry)
+        #expect(calls.value == [1, 2])
+    }
+
+    @Test("Earlier .doNotRetry does not veto a later .retry")
+    func doNotRetryDoesNotVetoRetry() async throws {
+        let r1 = MockRequestRetrier { _, _, _ in .doNotRetry }
+        let r2 = MockRequestRetrier { _, _, _ in .retry }
+        let interceptor = RequestInterceptor(retriers: [r1, r2])
+
+        let result = try await interceptor.retry(
+            URLRequest(url: URL(string: "https://x.com")!),
+            for: MockTargetType.example1,
+            dueTo: NSError(domain: "t", code: 1)
+        )
+        #expect(result == .retry)
+    }
+
+    @Test("All retriers returning .doNotRetry yields .doNotRetry")
+    func allDoNotRetry() async throws {
+        let calls = TestBox(0)
+        let r1 = MockRequestRetrier { _, _, _ in calls.value += 1; return .doNotRetry }
+        let r2 = MockRequestRetrier { _, _, _ in calls.value += 1; return .doNotRetry }
+        let interceptor = RequestInterceptor(retriers: [r1, r2])
+
+        let result = try await interceptor.retry(
+            URLRequest(url: URL(string: "https://x.com")!),
+            for: MockTargetType.example1,
+            dueTo: NSError(domain: "t", code: 1)
+        )
+        #expect(result == .doNotRetry)
+        #expect(calls.value == 2)
+    }
+
+    @Test("Empty retrier list defaults to .doNotRetry")
+    func emptyRetriers() async throws {
+        let interceptor = RequestInterceptor()
+        let result = try await interceptor.retry(
+            URLRequest(url: URL(string: "https://x.com")!),
+            for: MockTargetType.example1,
+            dueTo: NSError(domain: "t", code: 1)
+        )
         #expect(result == .doNotRetry)
     }
 
-    @Test("retry is forwarded the original request, target and error")
+    @Test("Retrier receives the original request, target and error")
     func retryForwardsArguments() async throws {
         let originalRequest = URLRequest(url: URL(string: "http://t.com/abc")!)
         let originalTarget = MockTargetType.example1
