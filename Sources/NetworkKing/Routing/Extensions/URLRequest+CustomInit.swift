@@ -1,20 +1,13 @@
-//
-//  URLRequest+CustomInit.swift
-//
-//
-//  Created by Satish Vekariya on 29/04/2023.
-//
-
 import Foundation
 
 public extension URLRequest {
-    /// Construct a `URLRequest` with the `URL`, `method`, and `headers`.
+    /// Convenience initializer that assigns method and headers in one call.
     ///
     /// - Parameters:
-    ///   - url:     The `URL` value.
-    ///   - method:  The `HTTPMethod`.
-    ///   - headers: The `HTTPHeaders`,  default `nil`.
-    /// - Throws:    Any error thrown while converting the `URLConvertible` to a `URL`.
+    ///   - url:     The destination URL.
+    ///   - method:  The HTTP verb. Written to `httpMethod` as its raw value.
+    ///   - headers: Optional headers. When `nil`, no headers are set.
+    /// - Throws:    Reserved for future use; currently does not throw.
     init(url: URL, method: HTTPMethod, headers: HTTPHeaders? = nil) throws {
         self.init(url: url)
         httpMethod = method.rawValue
