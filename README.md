@@ -1,144 +1,137 @@
 # NetworkKing 👑
 
-![Swift](https://img.shields.io/badge/Swift-5.8-orange?style=flat-square)
-![Swift Package Manager](https://img.shields.io/badge/Swift_Package_Manager-compatible-orange?style=flat-square)
-![Platforms](https://img.shields.io/badge/Platforms-iOS-yellowgreen?style=flat-square)
+[![Swift](https://img.shields.io/badge/Swift-5.8+-orange?style=flat-square)](https://swift.org)
+[![Platforms](https://img.shields.io/badge/Platforms-iOS_16+-yellowgreen?style=flat-square)](https://developer.apple.com/ios/)
+[![SPM](https://img.shields.io/badge/SPM-compatible-orange?style=flat-square)](https://swift.org/package-manager/)
+[![CI](https://github.com/satishVekariya/NetworkKing/actions/workflows/swift.yml/badge.svg)](https://github.com/satishVekariya/NetworkKing/actions/workflows/swift.yml)
 
-NetworkKing is a  network abstraction layer written in Swift. It does not implement its own HTTP networking functionality. Instead it builds on top of URLSession.
+Type-safe, dependency-free networking on top of `URLSession`, with async/await — inspired by [Moya](https://github.com/Moya/Moya) and [Alamofire](https://github.com/Alamofire/Alamofire).
 
 ## Features
 
-✅ Compile-time checking for correct API endpoint accesses.
+- Compile-time-checked endpoints via enums
+- Async/await, strict-concurrency clean
+- Request adapters & retriers (auth, logging, token refresh)
+- Response validators, per-target `JSONDecoder`
+- Typed `NetworkError`, zero dependencies
 
-✅ Lets you define a clear usage of different endpoints with associated enum values.
+## Requirements
 
-✅ Swift's concurrency support
+iOS 16+ · Swift 5.8+ · Xcode 14.3+
 
-✅ Inspection and mutation support for each request before being start
+## Installation
 
-✅ Request retrying
+```swift
+.package(url: "https://github.com/satishVekariya/NetworkKing.git", from: "1.0.0")
+```
 
-✅ Response validation
+## Quick Start
 
-✅ Errors handling
-
-✅ Comprehensive Unit test coverage
-
-## Usage
-
-__Routing__: So how do you use this module? Well it's really simple. First set up `enum` with all your api targets. You can include information as part of your enum. For example first create a new enum MyApiTarget:
-
-```Swift
+```swift
 import NetworkKing
- 
-enum MyApiTarget {
-    case getMyData
-    //...
+
+enum TodoAPI: NetworkTargetType {
+    case todo(id: Int)
+
+    var baseURL: URL { URL(string: "https://jsonplaceholder.cypress.io")! }
+    var path: String { switch self { case .todo(let id): return "/todos/\(id)" } }
+    var method: HTTPMethod { .get }
 }
- 
-extension MyApiTarget: NetworkTargetType {
-    var baseURL: URL {
-        URL(string: "https://jsonplaceholder.cypress.io")!
-    }
-    var path: String {
-        "/todos/1"
-    }
-    var method: NetworkKing.HTTPMethod {
-        .get
+
+struct Todo: Decodable { let id: Int; let title: String; let completed: Bool }
+
+let provider = NetworkProvider<TodoAPI>()
+let response = try await provider.perform(target: .todo(id: 1), response: Todo.self)
+// response.value -> Todo, response.urlResponse -> URLResponse
+```
+
+## Targets
+
+`NetworkTargetType` properties:
+
+| Property  | Default          | Purpose                       |
+|-----------|------------------|-------------------------------|
+| `baseURL` | —                | Base URL                      |
+| `path`    | —                | Appended to `baseURL`         |
+| `method`  | —                | `.get` `.post` `.put` `.delete` |
+| `task`    | `.requestPlain`  | Body / query (see below)      |
+| `headers` | `nil`            | Per-request headers           |
+| `decoder` | `JSONDecoder()`  | Response decoder              |
+
+## Bodies & Query Parameters
+
+```swift
+var task: RequestTask {
+    switch self {
+    case .list(let page):     .requestURLQueryParameters(["page": "\(page)"])
+    case .create(let user):   .requestJSONEncodable(user)
+    case .raw(let data):      .requestData(data)
+    case .ping:               .requestPlain
     }
 }
 ```
-This enum is used to make sure that you provide implementation details for each target at compile time. The enum must additionally confirm to the `NetworkTargetType` protocol like above.
 
-Now create an instance of NetworkProvider and retain the provider somewhere. (Note that NetworkProvider is a generic class)
+## Interception
 
-```Swift
-let myProvider = NetworkProvider<MyApiTarget>.init()
-```
-
-Now how do we make a request? Just asynchronously call `perform` method and provide your target api (eg. .getMyData) and response type(if needed) in order to decode/map network data into your custom type(eg. User).
-
-```Swift
-struct User: Codable {
-    let userId: Int
-    let id: Int
-    let title: String
-    let completed: Bool
-}
- 
-Task {
-    let response = try? await myProvider.perform(target: .getMyData, response: User.self)
-}
-```
-
-
-__RequestInterceptor__: NetworkKing module can mutate or inspect each url request before its being made. What you needs to do is create a type that confirm to the `RequestAdapter` and pass an instance of that type into NetworkProvider's init like below:
-
-```Swift
-struct NetworkEventMonitor: RequestAdapter {
-    func adapt(_ urlRequest: URLRequest, for target: NetworkTargetType) async throws -> URLRequest {
-        print("NetworkEvent received with url:\n\(urlRequest.url)")
-        return urlRequest
+```swift
+struct AuthAdapter: RequestAdapter {
+    let token: () -> String?
+    func adapt(_ req: URLRequest, for target: NetworkTargetType) async throws -> URLRequest {
+        var r = req
+        if let t = token() { r.setValue("Bearer \(t)", forHTTPHeaderField: "Authorization") }
+        return r
     }
 }
- 
-// Request retrying
-struct MyRequestRetrier: RequestRetrier {
-   public func retry(_ request: URLRequest,for target: NetworkTargetType,dueTo error: Error) async throws -> RetryResult {
-       if error == "254" {
-           // e.g. Perform refresh token and then return 
-           return .retry // This will trigger rebuild of URLRequest
-       }
-       return .doNotRetry
-   }
-} 
- 
-let interceptor = RequestInterceptor(adapters: [NetworkEventMonitor(), ...], retriers: [MyRequestRetrier(), ...])
-let myProvider = NetworkProvider<UserService>.init(requestInterceptor: interceptor)
+
+struct UnauthorizedRetrier: RequestRetrier {
+    func retry(_ req: URLRequest, for target: NetworkTargetType, dueTo error: Error) async throws -> RetryResult {
+        if case .responseValidationFailed = error as? NetworkError { return .retry }
+        return .doNotRetry
+    }
+}
+
+let provider = NetworkProvider<UserAPI>(
+    requestInterceptor: RequestInterceptor(
+        adapters: [AuthAdapter(token: { Keychain.token })],
+        retriers: [UnauthorizedRetrier()]
+    )
+)
 ```
 
+Adapters run in order; retriers are consulted until one returns `.retry`.
 
-__DataResponseValidator__: You can also perform response validation before decoding/mapping in order to do that your type needs to confirm `DataResponseValidator` protocol which has single method requirement called validate . Inside that method you needs to make a decision about your response wether its valid or not and return your result like below:  
+## Response Validation
 
-```Swift
-struct MyCustomDataResponseValidator: DataResponseValidator {
-    func validate(_ data: Data, response urlResponse: URLResponse) -> Result<Void, NetworkError> {
-        if let response =  urlResponse as? HTTPURLResponse, response.statusCode == 401 {
-            return .failure(.responseValidationFailed(error: NSError(domain: "Network", code: response.statusCode)))
+```swift
+struct StatusCodeValidator: DataResponseValidator {
+    func validate(_ data: Data, response: URLResponse) -> Result<Void, NetworkError> {
+        guard let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) else {
+            return .success(())
         }
-        return .success(Void())
+        return .failure(.responseValidationFailed(error: NSError(domain: "HTTP", code: http.statusCode)))
     }
 }
 
-// With custom validator
-let myProvider2 = NetworkProvider<UserService>.init(dataResponseValidator: MyCustomDataResponseValidator())
+let provider = NetworkProvider<UserAPI>(dataResponseValidator: StatusCodeValidator())
 ```
 
+## Error Handling
 
-__Errors handling__: While making network requests it always possible that errors may occurred. You can catch any error thrown by perform method of NetworkProvider using traditional do {} catch {} statement.
-
-```Swift
-Task {
-    do {
-        let response = try await myProvider.perform(target: .getMyData, response: User.self)
-        // Handle your response
-    } catch let error as NetworkError {
-        // Handle error
-        switch error {
-        case .decodingFailed(let error):
-            <#code#>
-        case .encodingFailed(let error):
-            <#code#>
-        case .underlaying(let error):
-            <#code#>
-        case .responseValidationFailed(let error):
-            <#code#>
-        }
+```swift
+do {
+    let response = try await provider.perform(target: .todo(id: 1), response: Todo.self)
+} catch let error as NetworkError {
+    switch error {
+    case .decodingFailed, .encodingFailed, .urlEncodingFailed,
+         .responseValidationFailed, .underlaying: break
     }
 }
 ```
 
 ## References
-Alamofire routing: https://github.com/Alamofire/Alamofire/blob/master/Documentation/AdvancedUsage.md#routing-requests
 
-Moya: https://github.com/Moya/Moya
+[Alamofire routing](https://github.com/Alamofire/Alamofire/blob/master/Documentation/AdvancedUsage.md#routing-requests) · [Moya](https://github.com/Moya/Moya)
+
+## License
+
+MIT — see [LICENSE](LICENSE).
