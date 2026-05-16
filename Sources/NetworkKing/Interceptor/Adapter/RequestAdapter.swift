@@ -7,7 +7,7 @@
 
 import Foundation
 
-public protocol RequestAdapter {
+public protocol RequestAdapter: Sendable {
     /// Inspects and adapts the specified `URLRequest` in some manner and return new `URLRequest`.
     ///
     /// - Parameters:

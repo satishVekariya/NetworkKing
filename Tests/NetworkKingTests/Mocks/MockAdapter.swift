@@ -10,7 +10,7 @@ import Foundation
 
 struct MockAdapter: RequestAdapter {
     let httpHeaders: [String: String]
-    let block: () async -> Void
+    let block: @Sendable () async -> Void
 
     func adapt(_ urlRequest: URLRequest, for _: NetworkTargetType) async throws -> URLRequest {
         var urlRequest = urlRequest
@@ -26,4 +26,3 @@ struct MockAdapter: RequestAdapter {
     }
 }
 
-let r = RequestInterceptor(adapters: [])

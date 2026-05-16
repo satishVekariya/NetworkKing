@@ -1,6 +1,6 @@
 # NetworkKing 👑
 
-[![Swift](https://img.shields.io/badge/Swift-5.8+-orange?style=flat-square)](https://swift.org)
+[![Swift](https://img.shields.io/badge/Swift-6.0-orange?style=flat-square)](https://swift.org)
 [![Platforms](https://img.shields.io/badge/Platforms-iOS_16+-yellowgreen?style=flat-square)](https://developer.apple.com/ios/)
 [![SPM](https://img.shields.io/badge/SPM-compatible-orange?style=flat-square)](https://swift.org/package-manager/)
 [![CI](https://github.com/satishVekariya/NetworkKing/actions/workflows/swift.yml/badge.svg)](https://github.com/satishVekariya/NetworkKing/actions/workflows/swift.yml)
@@ -17,7 +17,7 @@ Type-safe, dependency-free networking on top of `URLSession`, with async/await �
 
 ## Requirements
 
-iOS 16+ · Swift 5.8+ · Xcode 14.3+
+iOS 16+ · Swift 6.0 · Xcode 16+
 
 ## Installation
 
@@ -131,7 +131,3 @@ do {
 ## References
 
 [Alamofire routing](https://github.com/Alamofire/Alamofire/blob/master/Documentation/AdvancedUsage.md#routing-requests) · [Moya](https://github.com/Moya/Moya)
-
-## License
-
-MIT — see [LICENSE](LICENSE).

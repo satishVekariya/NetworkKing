@@ -9,7 +9,7 @@ import Foundation
 import NetworkKing
 
 struct MockRequestRetrier: RequestRetrier {
-    typealias Block = (_ request: URLRequest, _ target: NetworkTargetType, _ error: Error) async throws -> RetryResult
+    typealias Block = @Sendable (_ request: URLRequest, _ target: NetworkTargetType, _ error: Error) async throws -> RetryResult
     
     let block: Block
 

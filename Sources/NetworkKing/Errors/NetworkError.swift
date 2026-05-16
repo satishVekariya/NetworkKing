@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum NetworkError: Error {
+public enum NetworkError: Error, @unchecked Sendable {
     case decodingFailed(error: Error)
     case encodingFailed(error: Error)
     case urlEncodingFailed(reason: String)

@@ -7,7 +7,7 @@
 
 import Foundation
 
-public protocol DataResponseValidator {
+public protocol DataResponseValidator: Sendable {
     /// Validate the specified `Data` & `URLResponse` in some manner and return a result.
     /// - Parameters:
     ///   - data: Instance of `Data` received from network

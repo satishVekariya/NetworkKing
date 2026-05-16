@@ -8,7 +8,7 @@
 import Foundation
 
 /// A type that determines whether a request should be retried after being executed by the specified session manager and encountering an error.
-public protocol RequestRetrier {
+public protocol RequestRetrier: Sendable {
     /// Determines whether the `URLRequest` should be retried by returning the `RetryResult` enum value.
     /// - Parameters:
     ///   - request: `URLRequest` that failed due to the provided `Error`.
@@ -18,7 +18,7 @@ public protocol RequestRetrier {
     func retry(_ request: URLRequest, for target: NetworkTargetType, dueTo error: Error) async throws -> RetryResult
 }
 
-public enum RetryResult {
+public enum RetryResult: Sendable {
     /// Retry should be attempted immediately.
     case retry
     /// Do not retry.
