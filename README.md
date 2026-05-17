@@ -4,6 +4,7 @@
 [![Platforms](https://img.shields.io/badge/Platforms-iOS_16+_|_macOS_13+-yellowgreen?style=flat-square)](https://developer.apple.com)
 [![SPM](https://img.shields.io/badge/SPM-compatible-orange?style=flat-square)](https://swift.org/package-manager/)
 [![CI](https://github.com/satishVekariya/NetworkKing/actions/workflows/swift.yml/badge.svg)](https://github.com/satishVekariya/NetworkKing/actions/workflows/swift.yml)
+[![Docs](https://github.com/satishVekariya/NetworkKing/actions/workflows/docs.yml/badge.svg)](https://satishvekariya.github.io/NetworkKing/documentation/networkking/)
 
 Type-safe, dependency-free networking on top of `URLSession`, with async/await — inspired by [Moya](https://github.com/Moya/Moya) and [Alamofire](https://github.com/Alamofire/Alamofire).
 
@@ -126,6 +127,17 @@ do {
          .responseValidationFailed, .underlaying: break
     }
 }
+```
+
+## Documentation
+
+Full API reference (DocC): https://satishvekariya.github.io/NetworkKing/documentation/networkking/
+
+To build locally:
+
+```bash
+swift package generate-documentation --target NetworkKing
+open .build/plugins/Swift-DocC/outputs/NetworkKing.doccarchive
 ```
 
 ## References

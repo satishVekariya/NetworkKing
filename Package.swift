@@ -10,6 +10,9 @@ let package = Package(
             name: "NetworkKing",
             targets: ["NetworkKing"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.0"),
+    ],
     targets: [
         .target(
             name: "NetworkKing",
