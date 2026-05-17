@@ -1,23 +1,20 @@
-//
-//  URLRequestConvertible.swift
-//
-//
-//  Created by Satish Vekariya on 29/04/2023.
-//
-
 import Foundation
 
-/// A protocol that can be used to  construct `URLRequest`.
+/// Anything that can produce a `URLRequest`.
+///
+/// `NetworkTargetType` refines this protocol — most consumers should
+/// conform to `NetworkTargetType` rather than this directly.
 public protocol URLRequestConvertible {
-    /// Construct a `URLRequest` from the conforming object or throws.
-    ///
-    /// - Returns: A `URLRequest`.
-    /// - Throws:  Any error thrown while constructing the `URLRequest`.
+    /// Build the `URLRequest` represented by this value.
+    /// - Throws: Any error encountered while constructing the request
+    ///           (e.g., body encoding failure).
     func toURLRequest() throws -> URLRequest
 }
 
 public extension URLRequestConvertible {
-    /// An optional`URLRequest` returned by ignoring  any `Error`.
+    /// Non-throwing convenience: returns the request, or `nil` if
+    /// `toURLRequest()` would throw. Useful for logging / diagnostics
+    /// where the actual error is not actionable.
     var urlRequest: URLRequest? {
         try? toURLRequest()
     }

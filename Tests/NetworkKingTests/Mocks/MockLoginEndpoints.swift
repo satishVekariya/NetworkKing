@@ -49,7 +49,7 @@ extension MockLoginEndpoints: NetworkTargetType {
 }
 
 struct MockDataResponseValidator: DataResponseValidator {
-    let block: () -> Result<Void, NetworkError>
+    let block: @Sendable () -> Result<Void, NetworkError>
     func validate(_: Data, response _: URLResponse) -> Result<Void, NetworkError> {
         block()
     }

@@ -1,26 +1,42 @@
-//
-//  RequestRetrier.swift
-//  
-//
-//  Created by Satish Vekariya on 29/04/2023.
-//
-
 import Foundation
 
-/// A type that determines whether a request should be retried after being executed by the specified session manager and encountering an error.
-public protocol RequestRetrier {
-    /// Determines whether the `URLRequest` should be retried by returning the `RetryResult` enum value.
+/// Decides whether a failed request should be retried.
+///
+/// `NetworkProvider` consults retriers when an attempt throws — whether
+/// the failure came from the transport layer (`URLSession`) or the
+/// `DataResponseValidator`. The chain is short-circuited at the **first
+/// retrier that returns `.retry`** (see `RequestInterceptor.retry`).
+///
+/// Only **one** retry is performed; if the retried attempt also fails,
+/// the error is rethrown without consulting retriers again.
+///
+/// ## Example: refresh-token on 401
+///
+/// ```swift
+/// struct UnauthorizedRetrier: RequestRetrier {
+///     let refreshToken: @Sendable () async -> Bool
+///     func retry(_ request: URLRequest, for target: NetworkTargetType, dueTo error: Error) async throws -> RetryResult {
+///         guard case .responseValidationFailed = error as? NetworkError else {
+///             return .doNotRetry
+///         }
+///         return await refreshToken() ? .retry : .doNotRetry
+///     }
+/// }
+/// ```
+public protocol RequestRetrier: Sendable {
+    /// Decide whether the failed request should be retried.
     /// - Parameters:
-    ///   - request: `URLRequest` that failed due to the provided `Error`.
-    ///   - target: The target of the request.
-    ///   - error: `Error` encountered while executing the `URLRequest`.
-    /// - Returns: An enum value to be returned when a retry decision has been determined.
+    ///   - request: The request as it was sent (post-adapter chain).
+    ///   - target:  The original `NetworkTargetType` value.
+    ///   - error:   The error that caused the failure.
     func retry(_ request: URLRequest, for target: NetworkTargetType, dueTo error: Error) async throws -> RetryResult
 }
 
-public enum RetryResult {
-    /// Retry should be attempted immediately.
+/// Outcome of a retrier's decision.
+public enum RetryResult: Sendable {
+    /// Rebuild the request and try again exactly once.
     case retry
-    /// Do not retry.
+
+    /// Give up; propagate the original error to the caller.
     case doNotRetry
 }
