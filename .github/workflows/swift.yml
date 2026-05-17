@@ -26,12 +26,46 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.app
+
+      - name: Select Xcode with iOS SDK
+        run: |
+          # Find the newest installed Xcode that ships with an iOS Simulator runtime.
+          for x in /Applications/Xcode_*.app /Applications/Xcode.app; do
+            [ -d "$x" ] || continue
+            if "$x/Contents/Developer/usr/bin/xcodebuild" -showsdks 2>/dev/null | grep -qi 'iphonesimulator'; then
+              echo "Selecting $x"
+              sudo xcode-select -s "$x"
+              break
+            fi
+          done
+
+      - name: Show iOS runtimes available
+        run: xcrun simctl list runtimes | grep -i ios || true
+
+      - name: Install iOS Simulator runtime if missing
+        run: |
+          if ! xcrun simctl list runtimes | grep -qi 'iOS'; then
+            sudo xcodebuild -downloadPlatform iOS
+          fi
+
+      - name: Pick an iOS Simulator destination
+        id: dest
+        run: |
+          # Prefer iPhone 16 Pro on any iOS; fall back to any iPhone.
+          DEST=$(xcrun simctl list devices available iOS \
+            | awk '/iPhone 16 Pro \(/ {print $0; exit}')
+          if [ -z "$DEST" ]; then
+            DEST=$(xcrun simctl list devices available iOS \
+              | awk '/iPhone/ && /\(Shutdown\)|\(Booted\)/ {print $0; exit}')
+          fi
+          UDID=$(echo "$DEST" | sed -E 's/.*\(([A-F0-9-]+)\).*/\1/')
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          echo "Using simulator $UDID ($DEST)"
+
       - name: Test
         run: |
           xcodebuild test \
             -scheme NetworkKing \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
+            -destination "id=${{ steps.dest.outputs.udid }}" \
             -enableCodeCoverage YES \
             CODE_SIGNING_ALLOWED=NO
