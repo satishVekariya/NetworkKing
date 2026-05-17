@@ -27,17 +27,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select Xcode with iOS SDK
+      - name: Select Xcode with matching iOS SDK
         run: |
-          # Find the newest installed Xcode that ships with an iOS Simulator runtime.
-          for x in /Applications/Xcode_*.app /Applications/Xcode.app; do
-            [ -d "$x" ] || continue
-            if "$x/Contents/Developer/usr/bin/xcodebuild" -showsdks 2>/dev/null | grep -qi 'iphonesimulator'; then
-              echo "Selecting $x"
-              sudo xcode-select -s "$x"
-              break
+          # Find the installed iOS Simulator runtime version, then pick an Xcode
+          # whose iphonesimulator SDK matches that major.minor. The runner often
+          # has older Xcodes (e.g. 16.0) pointing at iOS 18.0 SDK while only
+          # iOS 18.5+ runtimes are installed — those Xcodes cannot launch tests.
+          IOS_RUNTIME=$(xcrun simctl list runtimes | awk '/^iOS [0-9]+\.[0-9]+/ {print $2; exit}')
+          echo "Installed iOS runtime: $IOS_RUNTIME"
+
+          # Walk Xcodes newest-first; select the first whose iphonesimulator SDK
+          # matches the runtime major version.
+          MAJOR=$(echo "$IOS_RUNTIME" | cut -d. -f1)
+          SELECTED=""
+          for x in $(ls -dr /Applications/Xcode_*.app /Applications/Xcode.app 2>/dev/null); do
+            SDK=$("$x/Contents/Developer/usr/bin/xcodebuild" -showsdks 2>/dev/null \
+              | awk '/iphonesimulator/ {print $NF}' | head -1)
+            if [ -n "$SDK" ]; then
+              SDK_MAJOR=$(echo "$SDK" | sed -E 's/iphonesimulator([0-9]+).*/\1/')
+              if [ "$SDK_MAJOR" = "$MAJOR" ]; then
+                SELECTED="$x"
+                break
+              fi
+              [ -z "$SELECTED" ] && SELECTED="$x"  # fallback to newest-with-any-iOS-SDK
             fi
           done
+          echo "Selecting $SELECTED"
+          sudo xcode-select -s "$SELECTED"
+          xcodebuild -version
 
       - name: Show iOS runtimes available
         run: xcrun simctl list runtimes | grep -i ios || true
