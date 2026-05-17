@@ -133,12 +133,19 @@ do {
 
 Full API reference (DocC): https://satishvekariya.github.io/NetworkKing/documentation/networkking/
 
-To build locally:
+### Build locally
 
 ```bash
 swift package generate-documentation --target NetworkKing
 open .build/plugins/Swift-DocC/outputs/NetworkKing.doccarchive
 ```
+
+### Hosting (maintainers)
+
+Docs are published automatically by [`.github/workflows/docs.yml`](.github/workflows/docs.yml) on every push to `main`. One-time setup in this repository:
+
+1. Settings → Pages → **Source: GitHub Actions**.
+2. Merge to `main` to trigger the first build. The site lands at the URL above.
 
 ## References
 
