@@ -26,12 +26,63 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.app
+
+      - name: Select Xcode with matching iOS SDK
+        run: |
+          # Find the installed iOS Simulator runtime version, then pick an Xcode
+          # whose iphonesimulator SDK matches that major.minor. The runner often
+          # has older Xcodes (e.g. 16.0) pointing at iOS 18.0 SDK while only
+          # iOS 18.5+ runtimes are installed — those Xcodes cannot launch tests.
+          IOS_RUNTIME=$(xcrun simctl list runtimes | awk '/^iOS [0-9]+\.[0-9]+/ {print $2; exit}')
+          echo "Installed iOS runtime: $IOS_RUNTIME"
+
+          # Walk Xcodes newest-first; select the first whose iphonesimulator SDK
+          # matches the runtime major version.
+          MAJOR=$(echo "$IOS_RUNTIME" | cut -d. -f1)
+          SELECTED=""
+          for x in $(ls -dr /Applications/Xcode_*.app /Applications/Xcode.app 2>/dev/null); do
+            SDK=$("$x/Contents/Developer/usr/bin/xcodebuild" -showsdks 2>/dev/null \
+              | awk '/iphonesimulator/ {print $NF}' | head -1)
+            if [ -n "$SDK" ]; then
+              SDK_MAJOR=$(echo "$SDK" | sed -E 's/iphonesimulator([0-9]+).*/\1/')
+              if [ "$SDK_MAJOR" = "$MAJOR" ]; then
+                SELECTED="$x"
+                break
+              fi
+              [ -z "$SELECTED" ] && SELECTED="$x"  # fallback to newest-with-any-iOS-SDK
+            fi
+          done
+          echo "Selecting $SELECTED"
+          sudo xcode-select -s "$SELECTED"
+          xcodebuild -version
+
+      - name: Show iOS runtimes available
+        run: xcrun simctl list runtimes | grep -i ios || true
+
+      - name: Install iOS Simulator runtime if missing
+        run: |
+          if ! xcrun simctl list runtimes | grep -qi 'iOS'; then
+            sudo xcodebuild -downloadPlatform iOS
+          fi
+
+      - name: Pick an iOS Simulator destination
+        id: dest
+        run: |
+          # Prefer iPhone 16 Pro on any iOS; fall back to any iPhone.
+          DEST=$(xcrun simctl list devices available iOS \
+            | awk '/iPhone 16 Pro \(/ {print $0; exit}')
+          if [ -z "$DEST" ]; then
+            DEST=$(xcrun simctl list devices available iOS \
+              | awk '/iPhone/ && /\(Shutdown\)|\(Booted\)/ {print $0; exit}')
+          fi
+          UDID=$(echo "$DEST" | sed -E 's/.*\(([A-F0-9-]+)\).*/\1/')
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          echo "Using simulator $UDID ($DEST)"
+
       - name: Test
         run: |
           xcodebuild test \
             -scheme NetworkKing \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
+            -destination "id=${{ steps.dest.outputs.udid }}" \
             -enableCodeCoverage YES \
             CODE_SIGNING_ALLOWED=NO
